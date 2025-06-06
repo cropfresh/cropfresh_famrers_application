@@ -29,13 +29,9 @@ The CropFresh onboarding flow provides a comprehensive 4-screen introduction to 
 lib/features/onboarding/
 ├── presentation/
 │   ├── pages/
-│   │   ├── onboarding_screen.dart      # Main controller
-│   │   ├── welcome_screen.dart         # Screen 1
-│   │   ├── marketplace_features_screen.dart  # Screen 2
-│   │   ├── farm_solution_screen.dart   # Screen 3
-│   │   └── language_selection_screen.dart    # Screen 4
+│   │   ├── onboarding_screen.dart      # Material Design 3 onboarding (all 4 screens)
+│   │   └── language_selection_page.dart # Language selection page
 │   └── widgets/
-│       └── onboarding_page.dart        # Reusable page widget
 ```
 
 ### Key Components
@@ -180,8 +176,15 @@ final List<OnboardingPageData> _pages = [
 ## Navigation Flow
 
 ```
-Splash (5s) → Onboarding Screen 1 → Screen 2 → Screen 3 → Screen 4 → Dashboard
+Splash (5s) → Onboarding (4 screens) → Welcome Screen → Phone Number → Dashboard
 ```
+
+**Updated Flow:**
+1. **Splash Screen** (5 seconds) - App initialization and authentication check
+2. **Onboarding Screen** - Material Design 3 onboarding with 4 integrated screens
+3. **Welcome Screen** - Authentication entry point with Login/Register options
+4. **Phone Number Screen** - Authentication flow continues
+5. **Dashboard** - Main application interface
 
 ### Navigation Controls
 

@@ -67,16 +67,17 @@ class _LanguageSelectionPageState extends State<LanguageSelectionPage> {
     setState(() => _isLoading = true);
 
     try {
-      // * Save selected language
+      // * Save selected language (this automatically marks language selection as complete)
       await StorageService.setSelectedLanguage(_selectedLanguage!);
       
       if (mounted) {
-        // * Navigate to authentication
-        context.go('/phone-number');
+        // * Navigate to welcome screen after language selection
+        context.go('/welcome');
       }
     } catch (e) {
-      // TODO: Show error message
+      // ! ALERT: Error saving language selection
       debugPrint('Error saving language: $e');
+      // TODO: Show error message to user
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);

@@ -18,11 +18,15 @@ class AppConstants {
   static const String refreshTokenKey = 'refresh_token';
   static const String userDataKey = 'user_data';
   static const String onboardingCompleteKey = 'onboarding_complete';
+  static const String languageSelectionCompleteKey = 'language_selection_complete';
   static const String selectedLanguageKey = 'selected_language';
   static const String biometricEnabledKey = 'biometric_enabled';
   static const String notificationEnabledKey = 'notification_enabled';
   static const String offlineDataKey = 'offline_data';
   static const String lastSyncTimeKey = 'last_sync_time';
+  
+  // Default Values
+  static const String defaultLanguage = 'en';
   
   // Route Names
   static const String splashRoute = '/';
@@ -113,7 +117,6 @@ class AppConstants {
   
   // Default Values
   static const String defaultCountryCode = '+91';
-  static const String defaultLanguage = kannadaCode;
   static const String defaultCurrency = 'INR';
   static const String defaultCurrencySymbol = '₹';
   

@@ -67,8 +67,18 @@ class StorageService {
     return _settingsBox.get(AppConstants.onboardingCompleteKey, defaultValue: false);
   }
 
+  static Future<void> setLanguageSelectionComplete(bool value) async {
+    await _settingsBox.put(AppConstants.languageSelectionCompleteKey, value);
+  }
+
+  static bool isLanguageSelectionComplete() {
+    return _settingsBox.get(AppConstants.languageSelectionCompleteKey, defaultValue: false);
+  }
+
   static Future<void> setSelectedLanguage(String languageCode) async {
     await _settingsBox.put(AppConstants.selectedLanguageKey, languageCode);
+    // ! IMPORTANT: Mark language selection as complete when language is set
+    await setLanguageSelectionComplete(true);
   }
 
   static String getSelectedLanguage() {

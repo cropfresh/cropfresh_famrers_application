@@ -15,10 +15,11 @@ import '../constants/app_constants.dart';
 // * SCREEN IMPORTS
 // Splash & Onboarding
 import '../../features/splash/presentation/pages/splash_screen.dart';
-import '../../features/onboarding/presentation/pages/onboarding_page.dart';
+import '../../features/onboarding/presentation/pages/onboarding_screen.dart';
 import '../../features/onboarding/presentation/pages/language_selection_page.dart';
 
 // Authentication
+import '../../features/auth/presentation/pages/welcome_screen.dart';
 import '../../features/auth/presentation/pages/phone_number_page.dart';
 import '../../features/auth/presentation/pages/otp_verification_page.dart';
 import '../../features/auth/presentation/pages/profile_setup_page.dart';
@@ -74,6 +75,7 @@ class AppRoutes {
   static const String languageSelection = '/language-selection';
   
   // Authentication Flow
+  static const String welcome = '/welcome';
   static const String phoneNumber = '/phone-number';
   static const String otpVerification = '/otp-verification';
   static const String profileSetup = '/profile-setup';
@@ -155,7 +157,7 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.onboarding,
         name: 'onboarding',
-        builder: (context, state) => const OnboardingPage(),
+        builder: (context, state) => const OnboardingScreen(),
       ),
       
       GoRoute(
@@ -165,6 +167,12 @@ class AppRouter {
       ),
       
       // * AUTHENTICATION FLOW
+      GoRoute(
+        path: AppRoutes.welcome,
+        name: 'welcome',
+        builder: (context, state) => const WelcomeScreen(),
+      ),
+      
       GoRoute(
         path: AppRoutes.phoneNumber,
         name: 'phone-number',
@@ -403,6 +411,7 @@ class AppRouter {
       // ! ALERT: Authentication and onboarding flow management
       
       final isOnboardingComplete = await StorageService.getBool('onboarding_complete') ?? false;
+      final isLanguageSelectionComplete = await StorageService.getBool('language_selection_complete') ?? false;
       final isAuthenticated = await StorageService.getString('access_token') != null;
       final currentPath = state.uri.path;
       
@@ -411,18 +420,23 @@ class AppRouter {
         return null;
       }
       
-      // * ONBOARDING GUARD
+      // * ONBOARDING GUARD - First priority
       if (!isOnboardingComplete && !_isOnboardingRoute(currentPath)) {
         return AppRoutes.onboarding;
       }
       
-      // * AUTHENTICATION GUARD
+      // * LANGUAGE SELECTION GUARD - Second priority
+      if (isOnboardingComplete && !isLanguageSelectionComplete && currentPath != AppRoutes.languageSelection) {
+        return AppRoutes.languageSelection;
+      }
+      
+      // * AUTHENTICATION GUARD - Third priority
       if (!isAuthenticated && !_isPublicRoute(currentPath)) {
         return AppRoutes.phoneNumber;
       }
       
       // * MAIN APP REDIRECT
-      if (isAuthenticated && isOnboardingComplete && currentPath == '/') {
+      if (isAuthenticated && isOnboardingComplete && isLanguageSelectionComplete && currentPath == '/') {
         return AppRoutes.dashboard;
       }
       
@@ -455,6 +469,7 @@ class AppRouter {
       '/',
       '/onboarding',
       '/language-selection',
+      '/welcome',
       '/phone-number',
       '/otp-verification',
       '/profile-setup',
