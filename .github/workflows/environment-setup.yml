@@ -1,0 +1,191 @@
+name: Environment Setup
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+        description: 'Environment to setup (development, staging, production)'
+    secrets:
+      # Firebase removed - using Django backend only
+      
+      # Google Services
+      GOOGLE_MAPS_API_KEY:
+        required: false
+      GOOGLE_PLACES_API_KEY:
+        required: false
+      
+      # Authentication
+      JWT_SECRET_KEY:
+        required: false
+      ENCRYPTION_KEY:
+        required: false
+      
+      # Third-party services
+      WEATHER_API_KEY:
+        required: false
+      TWILIO_ACCOUNT_SID:
+        required: false
+      TWILIO_AUTH_TOKEN:
+        required: false
+      TWILIO_PHONE_NUMBER:
+        required: false
+      
+      # Payment
+      RAZORPAY_KEY_ID:
+        required: false
+      RAZORPAY_KEY_SECRET:
+        required: false
+      
+      # AWS
+      AWS_ACCESS_KEY_ID:
+        required: false
+      AWS_SECRET_ACCESS_KEY:
+        required: false
+      AWS_S3_BUCKET:
+        required: false
+      
+      # Monitoring
+      SENTRY_DSN:
+        required: false
+      
+      # Notifications
+      FCM_SERVER_KEY:
+        required: false
+
+jobs:
+  setup_environment:
+    name: Setup Environment Configuration
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+    
+    - name: Setup Environment File
+      run: |
+        # Create environment-specific .env file
+        ENV_FILE=".env.${{ inputs.environment }}"
+        
+        if [ ! -f "$ENV_FILE" ]; then
+          echo "Environment file $ENV_FILE not found!"
+          exit 1
+        fi
+        
+        # Copy base environment file
+        cp "$ENV_FILE" .env.local
+        
+        echo "📄 Environment file created for ${{ inputs.environment }}"
+    
+    - name: Inject Secrets (Production/Staging)
+      if: inputs.environment != 'development'
+      run: |
+        # Replace placeholder secrets with actual values
+        ENV_FILE=".env.local"
+        
+        # Firebase removed - using Django backend only
+        
+        # Google Services
+        if [ -n "${{ secrets.GOOGLE_MAPS_API_KEY }}" ]; then
+          sed -i "s/\${GOOGLE_MAPS_API_KEY.*}/${{ secrets.GOOGLE_MAPS_API_KEY }}/g" $ENV_FILE
+        fi
+        
+        if [ -n "${{ secrets.GOOGLE_PLACES_API_KEY }}" ]; then
+          sed -i "s/\${GOOGLE_PLACES_API_KEY.*}/${{ secrets.GOOGLE_PLACES_API_KEY }}/g" $ENV_FILE
+        fi
+        
+        # Authentication
+        if [ -n "${{ secrets.JWT_SECRET_KEY }}" ]; then
+          sed -i "s/\${JWT_SECRET_KEY.*}/${{ secrets.JWT_SECRET_KEY }}/g" $ENV_FILE
+        fi
+        
+        if [ -n "${{ secrets.ENCRYPTION_KEY }}" ]; then
+          sed -i "s/\${ENCRYPTION_KEY.*}/${{ secrets.ENCRYPTION_KEY }}/g" $ENV_FILE
+        fi
+        
+        # Weather Service
+        if [ -n "${{ secrets.WEATHER_API_KEY }}" ]; then
+          sed -i "s/\${WEATHER_API_KEY.*}/${{ secrets.WEATHER_API_KEY }}/g" $ENV_FILE
+        fi
+        
+        # Twilio
+        if [ -n "${{ secrets.TWILIO_ACCOUNT_SID }}" ]; then
+          sed -i "s/\${TWILIO_ACCOUNT_SID.*}/${{ secrets.TWILIO_ACCOUNT_SID }}/g" $ENV_FILE
+        fi
+        
+        if [ -n "${{ secrets.TWILIO_AUTH_TOKEN }}" ]; then
+          sed -i "s/\${TWILIO_AUTH_TOKEN.*}/${{ secrets.TWILIO_AUTH_TOKEN }}/g" $ENV_FILE
+        fi
+        
+        if [ -n "${{ secrets.TWILIO_PHONE_NUMBER }}" ]; then
+          sed -i "s/\${TWILIO_PHONE_NUMBER.*}/${{ secrets.TWILIO_PHONE_NUMBER }}/g" $ENV_FILE
+        fi
+        
+        # Razorpay
+        if [ -n "${{ secrets.RAZORPAY_KEY_ID }}" ]; then
+          sed -i "s/\${RAZORPAY_KEY_ID.*}/${{ secrets.RAZORPAY_KEY_ID }}/g" $ENV_FILE
+        fi
+        
+        if [ -n "${{ secrets.RAZORPAY_KEY_SECRET }}" ]; then
+          sed -i "s/\${RAZORPAY_KEY_SECRET.*}/${{ secrets.RAZORPAY_KEY_SECRET }}/g" $ENV_FILE
+        fi
+        
+        # AWS
+        if [ -n "${{ secrets.AWS_ACCESS_KEY_ID }}" ]; then
+          sed -i "s/\${AWS_ACCESS_KEY_ID.*}/${{ secrets.AWS_ACCESS_KEY_ID }}/g" $ENV_FILE
+        fi
+        
+        if [ -n "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ]; then
+          sed -i "s/\${AWS_SECRET_ACCESS_KEY.*}/${{ secrets.AWS_SECRET_ACCESS_KEY }}/g" $ENV_FILE
+        fi
+        
+        if [ -n "${{ secrets.AWS_S3_BUCKET }}" ]; then
+          sed -i "s/\${AWS_S3_BUCKET.*}/${{ secrets.AWS_S3_BUCKET }}/g" $ENV_FILE
+        fi
+        
+        # Monitoring
+        if [ -n "${{ secrets.SENTRY_DSN }}" ]; then
+          sed -i "s/\${SENTRY_DSN.*}/${{ secrets.SENTRY_DSN }}/g" $ENV_FILE
+        fi
+        
+        # Notifications
+        if [ -n "${{ secrets.FCM_SERVER_KEY }}" ]; then
+          sed -i "s/\${FCM_SERVER_KEY.*}/${{ secrets.FCM_SERVER_KEY }}/g" $ENV_FILE
+        fi
+        
+        echo "🔐 Secrets injected for ${{ inputs.environment }} environment"
+    
+    - name: Validate Environment Configuration
+      run: |
+        # Run validation script
+        chmod +x scripts/env_config.sh
+        ./scripts/env_config.sh validate local
+    
+    - name: Upload Environment Configuration
+      uses: actions/upload-artifact@v3
+      with:
+        name: environment-config-${{ inputs.environment }}
+        path: .env.local
+        retention-days: 1
+    
+    - name: Environment Summary
+      run: |
+        echo "## Environment Configuration Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Environment:** ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Configuration File:** .env.${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Show public configuration (non-sensitive)
+        echo "### Public Configuration" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        grep -E "^(APP_|API_BASE_URL|DEBUG_MODE|ENABLE_)" .env.local >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Show secrets status (masked)
+        echo "### Secrets Status" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        grep -E "(KEY|SECRET|TOKEN|PASSWORD)" .env.local | sed 's/=.*/=***/' >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY

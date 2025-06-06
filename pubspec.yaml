@@ -1,0 +1,204 @@
+name: cropfresh_farmers_app
+description: "CropFresh Farmers App - Empowering farmers with direct marketplace access, smart logistics, and agricultural services."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+  flutter: ">=3.16.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # UI & Animation
+  cupertino_icons: ^1.0.6
+  lottie: ^3.0.0
+  rive: ^0.13.20
+  animations: ^2.0.8
+  flutter_staggered_animations: ^1.1.1
+  shimmer: ^3.0.0
+  
+  # State Management
+  flutter_bloc: ^9.1.1
+  equatable: ^2.0.5
+  
+  # Navigation
+  go_router: ^15.1.2
+  
+  # Network & API
+  dio: ^5.4.0
+  retrofit: ^4.1.0
+  pretty_dio_logger: ^1.3.1
+  connectivity_plus: ^6.1.4
+  
+  # Environment Configuration
+  flutter_dotenv: ^5.1.0
+  
+  # Local Storage
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  shared_preferences: ^2.2.2
+  path_provider: ^2.1.2
+  
+  # Authentication & Security
+  local_auth: ^2.1.7
+  crypto: ^3.0.3
+  
+  # Multimedia
+  image_picker: ^1.0.7
+  cached_network_image: ^3.3.1
+  photo_view: ^0.15.0
+  
+  # Location & Maps
+  geolocator: ^14.0.1
+  google_maps_flutter: ^2.5.3
+  geocoding: ^4.0.0
+  
+  # Local Notifications (Firebase removed)
+  flutter_local_notifications: ^19.2.1
+  timezone: ^0.10.0
+  
+  # Utilities
+  intl: ^0.20.2
+  logger: ^2.0.2+1
+  package_info_plus: ^8.3.0
+  device_info_plus: ^11.4.0
+  url_launcher: ^6.2.4
+  share_plus: ^11.0.0
+  
+  # Form & Validation
+  flutter_form_builder: ^10.0.1
+  form_builder_validators: ^11.1.2
+  
+  # QR Code
+  mobile_scanner: ^7.0.0
+  qr_flutter: ^4.1.0
+  
+  # PDF & Documents
+  pdf: ^3.10.7
+  printing: ^5.12.0
+  
+  # Audio
+  just_audio: ^0.10.3
+  
+  # Language & Localization
+  flutter_localizations:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  
+  # Code Generation
+  build_runner: ^2.4.7
+  hive_generator: ^2.0.1
+  retrofit_generator: ^9.2.0
+  json_annotation: ^4.8.1
+  json_serializable: ^6.7.1
+  
+  # Linting
+  flutter_lints: ^6.0.0
+  very_good_analysis: ^8.0.0
+  
+  # Testing
+  mockito: ^5.4.4
+  bloc_test: ^10.0.0
+  integration_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+
+  # Assets
+  assets:
+    - assets/images/
+    - assets/lottie/
+    - assets/icons/
+    - assets/fonts/
+    - .env.example
+
+  # Fonts
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter_18pt-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Inter_18pt-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter_18pt-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Inter_18pt-Bold.ttf
+          weight: 700
+    
+    # Kannada Font Support
+    - family: NotoSansKannada
+      fonts:
+        - asset: assets/fonts/NotoSansKannada-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/NotoSansKannada-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/NotoSansKannada-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/NotoSansKannada-Bold.ttf
+          weight: 700
+    
+    # Telugu Font Support
+    - family: NotoSansTelugu
+      fonts:
+        - asset: assets/fonts/NotoSansTelugu-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/NotoSansTelugu-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/NotoSansTelugu-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/NotoSansTelugu-Bold.ttf
+          weight: 700
+    
+    # Hindi Font Support
+    - family: NotoSansDevanagari
+      fonts:
+        - asset: assets/fonts/NotoSansDevanagari-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/NotoSansDevanagari-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/NotoSansDevanagari-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/NotoSansDevanagari-Bold.ttf
+          weight: 700
+
+# Flutter configuration
+flutter_gen:
+  output: lib/core/generated/
+  line_length: 80
+  integrations:
+    flutter_svg: true
+    lottie: true
+
+# Build configuration
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/app_icon.png"
+  min_sdk_android: 21
+  web:
+    generate: true
+    image_path: "assets/images/app_icon.png"
+    background_color: "#FFFFFB"
+    theme_color: "#228B22"
+  windows:
+    generate: true
+    image_path: "assets/images/app_icon.png"
+    icon_size: 48
+
+flutter_native_splash:
+  color: "#FFFFFB"
+  image: assets/images/splash_logo.png
+  color_dark: "#121212"
+  image_dark: assets/images/splash_logo_dark.png
+  android_12:
+    image: assets/images/splash_logo_android12.png
+    icon_background_color: "#FFFFFB"
+    image_dark: assets/images/splash_logo_android12_dark.png
+    icon_background_color_dark: "#121212"
+  web: false

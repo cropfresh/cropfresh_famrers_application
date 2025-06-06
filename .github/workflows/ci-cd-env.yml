@@ -1,0 +1,364 @@
+name: CI/CD Pipeline with Environment Management
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+        - development
+        - staging
+        - production
+
+env:
+  FLUTTER_VERSION: '3.16.0'
+  JAVA_VERSION: '17'
+  NODE_VERSION: '18'
+
+jobs:
+  # Setup Environment Configuration
+  setup_environment:
+    name: Setup Environment
+    uses: ./.github/workflows/environment-setup.yml
+    with:
+      environment: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'staging') }}
+    secrets:
+      # Firebase removed - using Django backend only
+      
+      # Google Services
+      GOOGLE_MAPS_API_KEY: ${{ github.ref == 'refs/heads/main' && secrets.GOOGLE_MAPS_API_KEY_PRODUCTION || secrets.GOOGLE_MAPS_API_KEY_STAGING }}
+      GOOGLE_PLACES_API_KEY: ${{ github.ref == 'refs/heads/main' && secrets.GOOGLE_PLACES_API_KEY_PRODUCTION || secrets.GOOGLE_PLACES_API_KEY_STAGING }}
+      
+      # Authentication
+      JWT_SECRET_KEY: ${{ github.ref == 'refs/heads/main' && secrets.JWT_SECRET_KEY_PRODUCTION || secrets.JWT_SECRET_KEY_STAGING }}
+      ENCRYPTION_KEY: ${{ github.ref == 'refs/heads/main' && secrets.ENCRYPTION_KEY_PRODUCTION || secrets.ENCRYPTION_KEY_STAGING }}
+      
+      # Third-party services
+      WEATHER_API_KEY: ${{ secrets.WEATHER_API_KEY }}
+      TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+      TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+      TWILIO_PHONE_NUMBER: ${{ secrets.TWILIO_PHONE_NUMBER }}
+      
+      # Payment
+      RAZORPAY_KEY_ID: ${{ github.ref == 'refs/heads/main' && secrets.RAZORPAY_KEY_ID_PRODUCTION || secrets.RAZORPAY_KEY_ID_STAGING }}
+      RAZORPAY_KEY_SECRET: ${{ github.ref == 'refs/heads/main' && secrets.RAZORPAY_KEY_SECRET_PRODUCTION || secrets.RAZORPAY_KEY_SECRET_STAGING }}
+      
+      # AWS
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_S3_BUCKET: ${{ github.ref == 'refs/heads/main' && secrets.AWS_S3_BUCKET_PRODUCTION || secrets.AWS_S3_BUCKET_STAGING }}
+      
+      # Monitoring
+      SENTRY_DSN: ${{ github.ref == 'refs/heads/main' && secrets.SENTRY_DSN_PRODUCTION || secrets.SENTRY_DSN_STAGING }}
+      
+      # Notifications
+      FCM_SERVER_KEY: ${{ github.ref == 'refs/heads/main' && secrets.FCM_SERVER_KEY_PRODUCTION || secrets.FCM_SERVER_KEY_STAGING }}
+
+  # Code Quality Check
+  code_quality:
+    name: Code Quality & Analysis
+    runs-on: ubuntu-latest
+    needs: setup_environment
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Download Environment Config
+      uses: actions/download-artifact@v3
+      with:
+        name: environment-config-${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'staging') }}
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: ${{ env.FLUTTER_VERSION }}
+        channel: 'stable'
+        cache: true
+    
+    - name: Get Flutter Dependencies
+      run: flutter pub get
+    
+    - name: Verify Flutter Installation
+      run: flutter doctor -v
+    
+    - name: Check Flutter Formatting
+      run: dart format --output=none --set-exit-if-changed .
+    
+    - name: Analyze Flutter Code
+      run: flutter analyze --fatal-infos
+    
+    - name: Environment Configuration Check
+      run: |
+        echo "🔍 Checking environment configuration..."
+        
+        # Verify .env.local exists and has required vars
+        if [ ! -f ".env.local" ]; then
+          echo "❌ .env.local file not found!"
+          exit 1
+        fi
+        
+        # Check for critical environment variables
+        REQUIRED_VARS=("APP_ENV" "API_BASE_URL")
+        for var in "${REQUIRED_VARS[@]}"; do
+          if ! grep -q "^$var=" .env.local; then
+            echo "❌ Required variable $var not found in .env.local"
+            exit 1
+          fi
+        done
+        
+        echo "✅ Environment configuration verified"
+
+  # Unit and Widget Tests
+  test:
+    name: Unit & Widget Tests
+    runs-on: ubuntu-latest
+    needs: [setup_environment, code_quality]
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+    
+    - name: Download Environment Config
+      uses: actions/download-artifact@v3
+      with:
+        name: environment-config-${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'staging') }}
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: ${{ env.FLUTTER_VERSION }}
+        channel: 'stable'
+        cache: true
+    
+    - name: Get Dependencies
+      run: flutter pub get
+    
+    - name: Generate Code
+      run: |
+        flutter packages pub run build_runner build --delete-conflicting-outputs
+    
+    - name: Run Unit Tests
+      run: |
+        flutter test --coverage --reporter=github
+      env:
+        FLUTTER_TEST: true
+
+  # Build Applications
+  build:
+    name: Build Applications
+    runs-on: ${{ matrix.os }}
+    needs: [setup_environment, test]
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: android
+          - os: macos-latest
+            platform: ios
+          - os: ubuntu-latest
+            platform: web
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+    
+    - name: Download Environment Config
+      uses: actions/download-artifact@v3
+      with:
+        name: environment-config-${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'staging') }}
+    
+    - name: Setup Java (Android)
+      if: matrix.platform == 'android'
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'zulu'
+        java-version: ${{ env.JAVA_VERSION }}
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: ${{ env.FLUTTER_VERSION }}
+        channel: 'stable'
+        cache: true
+    
+    - name: Setup Xcode (iOS)
+      if: matrix.platform == 'ios'
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '15.0'
+    
+    - name: Enable Web (Web)
+      if: matrix.platform == 'web'
+      run: flutter config --enable-web
+    
+    - name: Get Dependencies
+      run: flutter pub get
+    
+    - name: Generate Code
+      run: |
+        flutter packages pub run build_runner build --delete-conflicting-outputs
+    
+    # Environment-specific builds
+    - name: Build Android APK
+      if: matrix.platform == 'android'
+      run: |
+        # Determine build type based on environment
+        ENV_NAME="${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'staging') }}"
+        
+        if [ "$ENV_NAME" == "production" ]; then
+          flutter build apk --release --dart-define=FLAVOR=production
+        else
+          flutter build apk --debug --dart-define=FLAVOR=$ENV_NAME
+        fi
+      env:
+        FLUTTER_BUILD: true
+    
+    - name: Build iOS
+      if: matrix.platform == 'ios'
+      run: |
+        ENV_NAME="${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'staging') }}"
+        
+        if [ "$ENV_NAME" == "production" ]; then
+          flutter build ios --release --dart-define=FLAVOR=production --no-codesign
+        else
+          flutter build ios --debug --dart-define=FLAVOR=$ENV_NAME --no-codesign
+        fi
+      env:
+        FLUTTER_BUILD: true
+    
+    - name: Build Web
+      if: matrix.platform == 'web'
+      run: |
+        ENV_NAME="${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'staging') }}"
+        flutter build web --release --dart-define=FLAVOR=$ENV_NAME
+      env:
+        FLUTTER_BUILD: true
+    
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ matrix.platform }}-build-${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'staging') }}
+        path: |
+          build/app/outputs/flutter-apk/*.apk
+          build/app/outputs/bundle/release/*.aab
+          build/ios/iphoneos/*.app
+          build/web/
+
+  # Security Scan
+  security_scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: setup_environment
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Download Environment Config
+      uses: actions/download-artifact@v3
+      with:
+        name: environment-config-${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'staging') }}
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: ${{ env.FLUTTER_VERSION }}
+        channel: 'stable'
+        cache: true
+    
+    - name: Get Dependencies
+      run: flutter pub get
+    
+    - name: Run Security Audit
+      run: |
+        flutter pub audit
+    
+    - name: Check for Secrets in Code
+      run: |
+        echo "🔍 Scanning for potential secrets in code..."
+        
+        # Check for hardcoded secrets patterns
+        PATTERNS=(
+          "api[_-]?key"
+          "secret[_-]?key"
+          "password"
+          "token"
+          "private[_-]?key"
+        )
+        
+        FOUND_SECRETS=false
+        for pattern in "${PATTERNS[@]}"; do
+          if grep -r -i "$pattern" lib/ --include="*.dart" | grep -v "// TODO\|// FIXME\|//" | grep -E "=.{10,}"; then
+            echo "⚠️ Potential secret found for pattern: $pattern"
+            FOUND_SECRETS=true
+          fi
+        done
+        
+        if [ "$FOUND_SECRETS" = true ]; then
+          echo "❌ Potential secrets found in code. Please review and use environment variables instead."
+          exit 1
+        else
+          echo "✅ No hardcoded secrets found"
+        fi
+
+  # Deploy to Environment
+  deploy:
+    name: Deploy to Environment
+    runs-on: ubuntu-latest
+    needs: [build, security_scan]
+    if: github.event_name != 'pull_request'
+    environment: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'staging') }}
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+    
+    - name: Download Environment Config
+      uses: actions/download-artifact@v3
+      with:
+        name: environment-config-${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'staging') }}
+    
+    - name: Download Build Artifacts
+      uses: actions/download-artifact@v3
+      with:
+        path: build-artifacts/
+    
+    - name: Deploy Web App
+      run: |
+        ENV_NAME="${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'staging') }}"
+        
+        echo "🚀 Deploying to $ENV_NAME environment..."
+        
+        # Firebase removed - deploying to alternative hosting
+        echo "Deploying to web hosting (Firebase removed)"
+        # Add actual web deployment commands here (Vercel, Netlify, etc.)
+    
+    - name: Notify Deployment
+      run: |
+        ENV_NAME="${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'staging') }}"
+        
+        echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Environment:** $ENV_NAME" >> $GITHUB_STEP_SUMMARY
+        echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Timestamp:** $(date)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "$ENV_NAME" == "production" ]; then
+          echo "🌍 **Live URL:** https://farmers.cropfresh.com" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "🧪 **Staging URL:** https://farmers-staging.cropfresh.com" >> $GITHUB_STEP_SUMMARY
+        fi

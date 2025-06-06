@@ -1,0 +1,1258 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Cropfresh Farmers Application Development Plan 
+1. App Flow Architecture Overview
+Splash Screen → Welcome/Onboarding → Authentication → Profile Setup → Dashboard → Feature Modules
+2. Detailed Screen-by-Screen Breakdown
+2.1 Splash Screen
+Purpose & Functionality:
+App Initialization: Load essential configurations and check app version
+Authentication Check: Verify if user is already logged in
+Offline Data Sync: Initialize background sync for cached data
+Language Detection: Auto-detect device language or load saved preference
+Backend Integration:
+API Endpoint: GET /api/app/config
+Response: App version, supported languages, feature flags, maintenance status
+Offline Handling: Cache last known configuration for offline use
+User Journey:
+Display CropFresh Logo with loading animation (2-3 seconds)
+Check Authentication Token from secure storage
+Route Decision:
+If authenticated → Navigate to Dashboard
+If new user → Navigate to Welcome Screen
+If maintenance mode → Show maintenance screen
+Technical Implementation:
+Duration: 3 seconds minimum for branding
+Background Tasks: Initialize Riverpod providers, check connectivity
+Error Handling: Network failures gracefully handled with cached data
+
+2.2 Welcome/Onboarding Screens (3-4 Screens)
+Screen 1: Welcome to CropFresh
+Content:
+Hero image of farmers using technology
+"Transform Your Farming with Digital Tools"
+Key benefits: Better Prices, Easy Logistics, Expert Support
+Screen 2: Marketplace Features
+Content:
+Product listing visuals with photo upload
+Price negotiation interface preview
+"Sell Direct to Buyers - No Middlemen"
+Screen 3: Complete Farm Solution
+Content:
+Input ordering, logistics booking, vet services icons
+"Everything You Need in One App"
+Offline capability highlight
+Screen 4: Local Language Support
+Content:
+Language selection (Kannada, Telugu, Hindi, English)
+"Choose Your Preferred Language"
+Cultural relevance emphasis
+Backend Integration:
+API Endpoint: GET /api/onboarding/content
+Localization: Dynamic content based on selected language
+Analytics: Track onboarding completion rates
+
+2.3 Language Selection Screen
+Purpose & Functionality:
+Primary Language Choice: Kannada, Telugu, Hindi, English
+Region-specific Content: Customize app content based on language
+Voice Command Support: Enable voice inputs in selected language
+Cultural Adaptation: Adjust UI elements for local preferences
+Backend Integration:
+API Endpoint: POST /api/user/language-preference
+Localization Service: Load translated content and UI strings
+Regional Customization: Adjust crop types, measurement units, local practices
+User Experience:
+Visual Language Cards: Flag icons with language names in native script
+Audio Preview: Sample voice commands in each language
+Easy Switching: Allow language change anytime in settings
+
+2.4 Authentication Screens
+2.4.1 Phone Number Entry Screen
+Purpose & Functionality:
+Primary Identifier: Phone number as main login credential
+Country Code Selection: Auto-detect or manual selection (+91 for India)
+Validation: Real-time phone number format validation
+Accessibility: Large input fields for easy typing
+Backend Integration:
+API Endpoint: POST /api/auth/send-otp
+Request: { "phone_number": "+919876543210", "country_code": "+91" }
+SMS Gateway: Integration with reliable SMS service (AWS SNS, Twilio)
+Rate Limiting: Prevent OTP spam with time-based restrictions
+User Experience:
+Auto-formatted Input: Automatic formatting as user types
+SIM Card Detection: Pre-fill with device phone number if available
+Error Handling: Clear messages for invalid numbers
+2.4.2 OTP Verification Screen
+Purpose & Functionality:
+6-digit OTP Input: Large, accessible input fields
+Auto-read SMS: Automatic OTP detection from SMS
+Resend Logic: 30-second cooldown with countdown timer
+Biometric Setup: Option to enable fingerprint/face ID
+Backend Integration:
+API Endpoint: POST /api/auth/verify-otp
+Request: { "phone_number": "+919876543210", "otp": "123456" }
+JWT Token Generation: Return access and refresh tokens
+Session Management: Create secure user session
+Security Features:
+OTP Expiry: 5-minute expiration time
+Attempt Limiting: Block after 3 failed attempts
+Device Binding: Link account to device for security
+
+2.5 Profile Setup Screens
+2.5.1 Personal Information Screen
+Purpose & Functionality:
+Basic Details: Full name, age, gender (optional)
+Profile Photo: Camera/gallery upload with crop functionality
+Farmer ID: Government farmer ID or create app-generated ID
+Experience Level: New farmer, experienced, expert
+Backend Integration:
+API Endpoint: POST /api/farmer/profile
+Image Upload: POST /api/media/upload for profile photo
+Validation: Name format, age range validation
+Document Storage: Secure storage of personal information
+User Experience:
+Progressive Disclosure: Optional fields collapsed initially
+Image Cropping: Built-in cropping tool for profile photos
+Skip Options: Allow completion later for faster onboarding
+2.5.2 Farm Details Screen
+Purpose & Functionality:
+Farm Location: GPS-based location with manual address entry
+Land Area: Hectares/acres with visual size reference
+Ownership Type: Owner, tenant, sharecropper, cooperative member
+Primary Crops: Multi-select crop types grown
+Irrigation: Type and source of irrigation
+Backend Integration:
+API Endpoint: POST /api/farmer/farm-details
+GIS Integration: Store GPS coordinates for location-based services
+Crop Database: Load region-specific crop varieties
+Land Verification: Future integration with land records
+Location Features:
+GPS Auto-detection: Use device GPS for accurate location
+Map Integration: Visual farm boundary marking
+Address Autocomplete: Google Places API integration
+Offline Capability: Cache location data for offline use
+2.5.3 Document Upload Screen
+Purpose & Functionality:
+Identity Proof: Aadhaar, Voter ID, Driving License
+Land Documents: Land ownership, lease agreements
+Bank Details: Account information for payments
+Government IDs: Kisan Credit Card, PM-Kisan beneficiary ID
+Backend Integration:
+API Endpoint: POST /api/farmer/documents
+Document OCR: Extract information from uploaded documents
+Verification Service: Third-party verification when available
+Secure Storage: Encrypted storage of sensitive documents
+Security & Privacy:
+End-to-end Encryption: Secure document transmission
+Data Minimization: Store only essential information
+User Consent: Clear explanation of data usage
+GDPR Compliance: Right to delete personal data
+
+2.6 Main Dashboard Screen
+Purpose & Functionality:
+Quick Actions: Most used features prominently displayed
+Weather Widget: Current conditions and 5-day forecast
+Market Prices: Today's mandi rates for farmer's crops
+Notifications: Important alerts and messages
+Activity Summary: Recent orders, bookings, messages
+Backend Integration:
+API Endpoint: GET /api/farmer/dashboard
+Weather Service: Third-party weather API integration
+Market Data: Real-time price feeds from mandis
+Notification Service: Push notification management
+Dashboard Widgets:
+Weather Card:
+Current temperature, humidity, wind speed
+Rainfall probability and UV index
+5-day forecast with crop-relevant advice
+Severe weather alerts
+Market Prices Card:
+Today's rates for farmer's primary crops
+Price trend indicators (up/down arrows)
+Nearby mandi prices comparison
+AI price predictions (Phase 2)
+Quick Actions Grid:
+Sell Produce (Direct Marketplace)
+Buy Inputs (Seeds, fertilizers, pesticides)
+Book Logistics (Transportation)
+Get Soil Tested
+Call Veterinarian
+Knowledge Hub
+Active Orders Card:
+Pending product sales
+Input orders in transit
+Upcoming service appointments
+Logistics bookings status
+Notifications Panel:
+System announcements
+Order updates
+Weather alerts
+Government scheme notifications
+Offline Functionality:
+Cached Weather: Last 24-hour weather data
+Cached Prices: Previous day's market rates
+Offline Actions: Queue actions for when online
+Sync Indicator: Show last sync time
+
+2.7 Direct Marketplace Module
+2.7.1 Product Listing Screen
+Purpose & Functionality:
+Create New Listing: Step-by-step product listing wizard
+Manage Listings: View, edit, delete existing products
+Performance Analytics: Views, inquiries, conversion rates
+Bulk Operations: List multiple products efficiently
+Backend Integration:
+API Endpoints:
+GET /api/farmer/products - Fetch farmer's listings
+POST /api/products - Create new product
+PUT /api/products/{id} - Update existing product
+DELETE /api/products/{id} - Remove listing
+Screen Layout:
+Header: "My Products" with add button and filter options
+Active Listings: Grid/list view of current products
+Draft Listings: Incomplete product drafts
+Sold Products: Historical sales record
+Analytics Summary: Performance metrics
+2.7.2 Create Product Listing Screen
+Purpose & Functionality:
+Step 1 - Crop Selection: Choose crop type and variety
+Step 2 - Product Details: Quantity, quality grade, harvest date
+Step 3 - Photos: Minimum 3 high-quality images required
+Step 4 - Pricing: Fixed price, negotiable, or auction
+Step 5 - Location: Pickup location and availability
+Backend Integration:
+API Endpoints:
+GET /api/crops/types - Available crop types
+GET /api/crops/varieties/{crop_id} - Crop varieties
+POST /api/media/upload - Image upload
+POST /api/products - Create product listing
+Photo Upload Process:
+Image Capture: Camera integration with flash and focus controls
+Quality Check: AI-based blur and quality detection
+Image Enhancement: Auto-correction for lighting and color
+Multiple Upload: Batch upload with progress indicators
+Image Ordering: Drag-and-drop to arrange photo sequence
+Pricing Options:
+Fixed Price: Set firm selling price
+Negotiable: Enable price negotiations with buyers
+Auction: Time-bound bidding process
+Bulk Discounts: Quantity-based pricing tiers
+2.7.3 Product Detail & Management Screen
+Purpose & Functionality:
+Product Information: Complete product details display
+Photo Gallery: Swipeable image carousel
+Buyer Inquiries: List of interested buyers and messages
+Performance Metrics: Views, saves, inquiry rate
+Quick Actions: Edit, share, mark as sold, delete
+Backend Integration:
+API Endpoints:
+GET /api/products/{id} - Product details
+GET /api/products/{id}/inquiries - Buyer inquiries
+GET /api/products/{id}/analytics - Performance data
+Inquiry Management:
+Buyer List: Potential buyers with their ratings
+Message Thread: Communication history with each buyer
+Quick Responses: Pre-written common responses
+Priority Marking: Flag serious buyers for follow-up
+2.7.4 Price Negotiation Screen
+Purpose & Functionality:
+Negotiation Thread: Chat-like interface for price discussions
+Counter-offers: Easy price adjustment with percentage changes
+Terms Discussion: Delivery terms, payment methods, quality standards
+Deal Closure: Accept/reject offers with binding agreements
+Backend Integration:
+API Endpoints:
+GET /api/negotiations/{product_id} - Negotiation history
+POST /api/negotiations/offer - Send counter-offer
+POST /api/negotiations/accept - Accept final offer
+WebSocket: Real-time negotiation updates
+Integration with Business App:
+Buyer-side View: Synchronized negotiation interface
+Real-time Updates: Instant notification of price changes
+Business Verification: Buyer credential display
+Rating System: Post-transaction rating exchange
+Integration with Partners App:
+Logistics Coordination: Auto-suggest transport after deal closure
+Quality Verification: Third-party quality assessment option
+Payment Processing: Secure payment gateway integration
+
+2.8 Logistics Booking Module
+2.8.1 Logistics Provider Discovery Screen
+Purpose & Functionality:
+Location-based Search: Find providers within specified radius
+Filter Options: Vehicle type, capacity, refrigeration, rating
+Provider Profiles: Company details, individual driver info
+Real-time Availability: Current status and next available time
+Backend Integration:
+API Endpoints:
+GET /api/logistics/providers - Search providers by location
+GET /api/logistics/vehicles - Available vehicle types
+GET /api/logistics/providers/{id} - Provider details
+Search Filters:
+Distance: 5km, 10km, 25km, 50km radius
+Vehicle Type: Pickup truck, mini truck, tractor, reefer truck
+Capacity: Weight (kg) and volume (cubic meters)
+Special Features: GPS tracking, temperature control
+Price Range: Cost per kilometer or fixed rate
+2.8.2 Booking Details Screen
+Purpose & Functionality:
+Route Planning: Pickup and delivery location selection
+Load Details: Weight, volume, special handling requirements
+Scheduling: Preferred pickup date and time
+Additional Services: Loading/unloading assistance, packaging
+Backend Integration:
+API Endpoints:
+POST /api/logistics/bookings - Create new booking
+GET /api/locations/geocode - Address to coordinates conversion
+GET /api/logistics/estimate - Price estimation
+Integration with Partners App (Logistics):
+Booking Notification: Instant alert to logistics provider
+Acceptance Flow: Provider can accept/decline booking
+Real-time Updates: Status changes synchronized
+Route Optimization: AI-suggested optimal routes (Phase 2)
+Location Selection:
+GPS Integration: Current location auto-detection
+Map Interface: Visual location selection on map
+Address Autocomplete: Intelligent address suggestions
+Saved Locations: Frequently used pickup/delivery points
+2.8.3 Tracking & Management Screen
+Purpose & Functionality:
+Live Tracking: Real-time GPS location of shipment
+Status Updates: Pickup confirmed, in transit, delivered
+Communication: Direct chat with driver/logistics provider
+Delivery Confirmation: Photo proof and digital signature
+Backend Integration:
+API Endpoints:
+GET /api/logistics/bookings/{id}/tracking - Real-time location
+GET /api/logistics/bookings/{id}/status - Status updates
+WebSocket: Live tracking updates
+Integration with Partners App:
+Driver Updates: Location sharing and status updates
+Photo Documentation: Delivery proof sharing
+Issue Reporting: Handle delivery problems in real-time
+
+2.9 Input Procurement Module
+2.9.1 Input Categories Screen
+Purpose & Functionality:
+Category Grid: Seeds, Fertilizers, Pesticides, Organic Inputs, Equipment
+Featured Products: Seasonal recommendations and offers
+Local Dealers: Nearby input dealers with ratings
+Search Functionality: Quick product and dealer search
+Backend Integration:
+API Endpoints:
+GET /api/inputs/categories - Product categories
+GET /api/inputs/featured - Featured products
+GET /api/dealers/nearby - Location-based dealer search
+Category Organization:
+Seeds: Crop-wise varieties with certifications
+Fertilizers: NPK, micronutrients, organic fertilizers
+Pesticides: Insecticides, fungicides, herbicides
+Organic Inputs: Bio-fertilizers, organic pesticides
+Equipment: Hand tools, irrigation equipment, machinery
+2.9.2 Product Catalog Screen
+Purpose & Functionality:
+Product Grid: Visual product catalog with images
+Detailed Information: Specifications, usage instructions, certifications
+Price Comparison: Multiple dealer pricing for same product
+Bulk Discounts: Quantity-based pricing tiers
+Reviews & Ratings: Farmer feedback on products
+Backend Integration:
+API Endpoints:
+GET /api/inputs/products - Product catalog
+GET /api/inputs/products/{id} - Product details
+GET /api/inputs/reviews - Product reviews
+Integration with Partners App (Input Dealers):
+Real-time Inventory: Live stock levels from dealers
+Price Updates: Dynamic pricing based on dealer input
+Product Availability: Instant stock confirmation
+2.9.3 Order Placement Screen
+Purpose & Functionality:
+Shopping Cart: Add multiple products from different dealers
+Quantity Selection: Easy quantity adjustment with unit conversion
+Delivery Options: Dealer delivery, logistics partner, self-pickup
+Payment Methods: Cash on delivery, digital payments, credit
+Order Summary: Total cost with taxes and delivery charges
+Backend Integration:
+API Endpoints:
+POST /api/inputs/orders - Place new order
+GET /api/inputs/cart - Shopping cart management
+POST /api/payments/initiate - Payment processing
+Integration with Partners App (Input Dealers):
+Order Notification: Instant order alert to dealer
+Inventory Update: Automatic stock reduction
+Fulfillment Tracking: Order processing status
+Integration with Partners App (Logistics):
+Delivery Coordination: Auto-coordinate delivery logistics
+Combined Shipments: Optimize multiple orders delivery
+2.9.4 Order Tracking Screen
+Purpose & Functionality:
+Order Status: Placed, confirmed, packed, shipped, delivered
+Delivery Tracking: Real-time shipment location
+Estimated Delivery: AI-predicted delivery time
+Communication: Chat with dealer and delivery partner
+Backend Integration:
+API Endpoints:
+GET /api/inputs/orders/{id} - Order details and status
+GET /api/inputs/orders/{id}/tracking - Delivery tracking
+WebSocket: Real-time status updates
+
+2.10 Soil Testing Module
+2.10.1 Lab Discovery Screen
+Purpose & Functionality:
+Lab Listings: Government and private soil testing labs
+Service Comparison: Test packages, pricing, turnaround time
+Lab Profiles: Accreditation, specialization, customer reviews
+Booking Availability: Real-time slot availability
+Backend Integration:
+API Endpoints:
+GET /api/soil-labs/search - Find labs by location
+GET /api/soil-labs/{id} - Lab details and services
+GET /api/soil-labs/{id}/packages - Available test packages
+Integration with Partners App (Soil Labs):
+Real-time Availability: Live calendar synchronization
+Service Updates: Dynamic package and pricing updates
+Capacity Management: Lab workload optimization
+2.10.2 Test Package Selection Screen
+Purpose & Functionality:
+Package Comparison: Basic, comprehensive, organic certification tests
+Parameter Details: Detailed explanation of each test parameter
+Price Breakdown: Transparent pricing with no hidden costs
+Recommendation Engine: Suggest tests based on crop type and history
+Backend Integration:
+API Endpoints:
+GET /api/soil-tests/packages - Available test packages
+GET /api/soil-tests/recommendations - Personalized recommendations
+Test Packages:
+Basic Package: pH, NPK, organic carbon
+Comprehensive: Basic + micronutrients + heavy metals
+Organic Certification: Pesticide residue + organic matter analysis
+Specialty Tests: Salinity, water holding capacity, biological activity
+2.10.3 Sample Collection Booking Screen
+Purpose & Functionality:
+Collection Method: Lab pickup, collection point, farmer delivery
+Sample Locations: GPS marking of multiple field locations
+Scheduling: Date and time slot selection
+Special Instructions: Crop history, specific concerns, field conditions
+Backend Integration:
+API Endpoints:
+POST /api/soil-tests/bookings - Create test booking
+GET /api/collection-points/nearby - Find collection points
+POST /api/sample-locations - Save sample GPS coordinates
+Integration with Partners App (Soil Labs):
+Collection Scheduling: Automated collection route planning
+Sample Tracking: Barcode generation and tracking system
+Quality Control: Sample condition verification
+2.10.4 Results & Interpretation Screen
+Purpose & Functionality:
+Digital Report: PDF report download and storage
+Simplified Interpretation: Plain language explanation of results
+Recommendations: Fertilizer suggestions and crop suitability
+Historical Tracking: Compare results over time
+Action Items: Specific next steps for soil improvement
+Backend Integration:
+API Endpoints:
+GET /api/soil-tests/{id}/results - Test results
+GET /api/soil-tests/{id}/interpretation - AI interpretation (Phase 2)
+GET /api/soil-tests/history - Historical test data
+AI Integration (Phase 2):
+Automated Interpretation: AI-powered result analysis
+Personalized Recommendations: Crop-specific advice
+Trend Analysis: Long-term soil health monitoring
+
+2.11 Veterinary Services Module
+2.11.1 Vet Discovery Screen
+Purpose & Functionality:
+Vet Listings: Government and private veterinarians
+Specialization Filter: Large animals, poultry, AI specialist, emergency
+Service Types: Clinic visit, farm visit, tele-consultation
+Availability Status: Real-time availability and emergency services
+Backend Integration:
+API Endpoints:
+GET /api/veterinarians/search - Find vets by location and specialization
+GET /api/veterinarians/{id} - Vet profile and services
+GET /api/veterinarians/{id}/availability - Real-time availability
+Integration with Partners App (Veterinarians):
+Real-time Availability: Live calendar updates
+Service Offerings: Dynamic service and pricing updates
+Emergency Status: Immediate availability for emergencies
+2.11.2 Service Selection Screen
+Purpose & Functionality:
+Service Types: Consultation, vaccination, AI services, emergency
+Animal Selection: Choose from farmer's livestock inventory
+Symptoms Input: Detailed symptom description with photos
+Urgency Level: Normal, urgent, emergency classification
+Backend Integration:
+API Endpoints:
+GET /api/farmer/livestock - Farmer's animal inventory
+POST /api/vet-appointments/book - Book appointment
+POST /api/media/upload - Upload symptom photos
+Service Categories:
+General Consultation: Health checkup, diagnosis
+Vaccination: Preventive immunization programs
+Artificial Insemination: Breeding services
+Emergency: 24/7 critical care services
+Surgery: Planned and emergency surgical procedures
+2.11.3 Appointment Booking Screen
+Purpose & Functionality:
+Date & Time Selection: Available slots based on vet calendar
+Location Choice: Clinic visit or farm visit option
+Animal Details: Select specific animals requiring attention
+Preparation Instructions: Pre-visit care instructions
+Cost Estimation: Transparent pricing for selected services
+Backend Integration:
+API Endpoints:
+GET /api/veterinarians/{id}/slots - Available time slots
+POST /api/vet-appointments - Create appointment
+GET /api/vet-services/pricing - Service pricing
+Integration with Partners App (Veterinarians):
+Appointment Notification: Instant booking confirmation
+Calendar Integration: Automatic calendar blocking
+Patient Information: Access to animal health history
+2.11.4 Consultation & Follow-up Screen
+Purpose & Functionality:
+Consultation Notes: Vet diagnosis and treatment plan
+Prescription Management: Digital prescription with medicine details
+Follow-up Scheduling: Automatic follow-up appointment reminders
+Treatment Progress: Track animal recovery and medication compliance
+Backend Integration:
+API Endpoints:
+GET /api/vet-appointments/{id}/notes - Consultation notes
+GET /api/prescriptions/{id} - Digital prescription
+POST /api/vet-appointments/follow-up - Schedule follow-up
+Integration with Partners App (Veterinarians):
+Digital Prescription: Synchronized prescription management
+Follow-up Alerts: Automated reminder system
+Treatment Monitoring: Progress tracking and updates
+
+2.12 Livestock Management Module
+2.12.1 Animal Inventory Screen
+Purpose & Functionality:
+Animal Registry: Complete livestock inventory with photos
+Health Status: Current health status of each animal
+Production Records: Milk yield, breeding history, weight tracking
+Alerts & Reminders: Vaccination due, breeding schedule, health checkups
+Backend Integration:
+API Endpoints:
+GET /api/farmer/livestock - Complete animal inventory
+POST /api/livestock/add - Add new animal
+PUT /api/livestock/{id} - Update animal information
+Animal Profile Information:
+Basic Details: Species, breed, age, gender, identification tags
+Health Records: Vaccination history, medical treatments, health issues
+Production Data: Milk yield records, breeding cycles, offspring
+Physical Characteristics: Weight, height, distinguishing features
+2.12.2 Animal Profile Detail Screen
+Purpose & Functionality:
+Complete Health History: Comprehensive medical record
+Production Analytics: Graphs and trends for productivity
+Breeding Management: Mating records, pregnancy tracking, offspring
+Financial Tracking: Cost of care, revenue from production
+Backend Integration:
+API Endpoints:
+GET /api/livestock/{id}/profile - Complete animal profile
+GET /api/livestock/{id}/health-history - Medical history
+GET /api/livestock/{id}/production - Production records
+Key Features:
+Photo Gallery: Multiple photos with timestamps
+Growth Charts: Weight and size progression over time
+Health Timeline: Chronological health events
+Financial Summary: Cost-benefit analysis per animal
+2.12.3 Health Tracking Screen
+Purpose & Functionality:
+Symptom Recording: Daily health observations and symptoms
+Medication Tracking: Treatment schedules and compliance
+Vaccination Calendar: Immunization schedule and reminders
+Emergency Alerts: Quick access to emergency vet services
+Backend Integration:
+API Endpoints:
+POST /api/livestock/{id}/health-record - Add health observation
+GET /api/livestock/{id}/medications - Current medications
+GET /api/vaccination-schedules - Vaccination reminders
+Health Monitoring Features:
+Daily Observations: Appetite, behavior, physical condition
+Temperature Tracking: Body temperature monitoring
+Medication Reminders: Automated alerts for drug administration
+Vet Consultation History: Quick access to past consultations
+
+2.13 Knowledge Hub (KrishiGyan Kendra)
+2.13.1 Knowledge Categories Screen
+Purpose & Functionality:
+Content Categories: Crop cultivation, pest management, livestock, market insights
+Featured Articles: Trending and seasonal content
+Video Library: Educational videos with local language support
+Expert Q&A: Community-driven knowledge sharing
+Backend Integration:
+API Endpoints:
+GET /api/knowledge/categories - Content categories
+GET /api/knowledge/featured - Featured content
+GET /api/knowledge/search - Content search
+Content Organization:
+Crop Specific: Detailed guides for regional crops
+Seasonal Advice: Time-sensitive farming practices
+Government Schemes: Latest policy updates and benefits
+Success Stories: Local farmer experiences and best practices
+2.13.2 Article/Video Detail Screen
+Purpose & Functionality:
+Rich Content Display: Articles with images, videos, infographics
+Offline Reading: Download content for offline access
+Interactive Elements: Checklists, calculators, planning tools
+Community Engagement: Comments, ratings, sharing options
+Backend Integration:
+API Endpoints:
+GET /api/knowledge/content/{id} - Content details
+POST /api/knowledge/content/{id}/download - Offline download
+POST /api/knowledge/content/{id}/feedback - User feedback
+Content Features:
+Multi-media: Text, images, videos, audio explanations
+Interactive Tools: Calculators for fertilizer, seed rate, spacing
+Related Content: Suggested articles and videos
+Expert Verification: Content validated by agricultural experts
+
+2.14 Nursery Services Module
+2.14.1 Nursery Discovery Screen
+Purpose & Functionality:
+Nursery Listings: Government and private nurseries
+Plant Categories: Fruit saplings, vegetable seedlings, ornamental plants
+Quality Certifications: Verified nurseries with quality assurance
+Seasonal Availability: Plants suitable for current season
+Backend Integration:
+API Endpoints:
+GET /api/nurseries/search - Find nurseries by location
+GET /api/nurseries/{id}/catalog - Available plants
+GET /api/plants/seasonal - Season-appropriate plants
+Integration with Partners App (Nurseries):
+Real-time Inventory: Live plant availability updates
+Quality Assurance: Certified plant sourcing verification
+Delivery Coordination: Specialized plant transportation
+2.14.2 Plant Catalog Screen
+Purpose & Functionality:
+Plant Varieties: Detailed plant information with care instructions
+Planting Calendar: Best planting times for each variety
+Care Guides: Watering, fertilization, pruning instructions
+Success Rate: Local climate suitability indicators
+Backend Integration:
+API Endpoints:
+GET /api/plants/catalog - Complete plant catalog
+GET /api/plants/{id}/care-guide - Plant care instructions
+GET /api/plants/climate-suitability - Regional suitability
+Plant Information:
+Variety Details: Scientific name, local name, characteristics
+Growing Requirements: Soil type, water needs, sunlight requirements
+Expected Yield: Production timelines and expected output
+Market Demand: Current market prices and demand trends
+
+2.15 Settings & Profile Management
+2.15.1 Profile Settings Screen
+Purpose & Functionality:
+Personal Information: Edit basic profile details
+Farm Information: Update farm details and location
+Preferences: Language, units, notification settings
+Privacy Controls: Data sharing and privacy preferences
+Backend Integration:
+API Endpoints:
+PUT /api/farmer/profile - Update profile information
+PUT /api/farmer/preferences - Update app preferences
+GET /api/farmer/privacy-settings - Privacy control options
+2.15.2 App Settings Screen
+Purpose & Functionality:
+Notification Management: Control push notifications by category
+Language Selection: Switch between supported languages
+Offline Settings: Manage offline data and sync preferences
+Support & Help: Access help documentation and contact support
+Backend Integration:
+API Endpoints:
+PUT /api/settings/notifications - Notification preferences
+PUT /api/settings/language - Language preference
+GET /api/support/help-topics - Help documentation
+
+3. Cross-App Integration Points
+Retry
+S
+Continue
+Edit
+3. Cross-App Integration Points
+3.1 Farmers App ↔ Business App Integration
+Marketplace Transactions
+Farmers App Side:
+Product Listing: Creates listing visible to all business users
+Price Negotiation: Real-time chat interface with buyers
+Order Management: Track buyer orders and delivery status
+Business App Side:
+Product Discovery: Browse farmer listings with advanced filters
+Bulk Procurement: Place large orders with multiple farmers
+Supplier Management: Rate and manage preferred farmer suppliers
+Backend Synchronization:
+API Endpoints:
+GET /api/marketplace/products - Shared product catalog
+POST /api/negotiations/message - Cross-app messaging
+PUT /api/orders/{id}/status - Real-time order updates
+WebSocket Events:
+product_inquiry_received - Notify farmer of buyer interest
+negotiation_updated - Real-time price negotiation updates
+order_status_changed - Order progress notifications
+Quality Assurance Integration
+Process Flow:
+Farmer uploads product with quality photos/videos
+Business requests additional quality verification
+System connects to quality assessment services
+Both parties receive verification results
+3.2 Farmers App ↔ Partners App Integration
+Logistics Coordination
+Farmers App Side:
+Booking Request: Select logistics provider and vehicle type
+Real-time Tracking: GPS tracking of shipment progress
+Delivery Confirmation: Photo proof and digital signature
+Partners App (Logistics) Side:
+Booking Management: Accept/decline farmer booking requests
+Route Optimization: AI-suggested optimal delivery routes
+Status Updates: Real-time location and delivery status updates
+Backend Synchronization:
+API Endpoints:
+POST /api/logistics/bookings - Create booking visible to partners
+PUT /api/logistics/bookings/{id}/accept - Partner accepts booking
+POST /api/logistics/tracking/update - GPS location updates
+Real-time Features:
+Live GPS Tracking: Continuous location sharing
+Instant Messaging: Direct communication between farmer and driver
+Photo Documentation: Pickup and delivery proof sharing
+Input Dealer Services
+Farmers App Side:
+Product Search: Browse input products from verified dealers
+Order Placement: Multi-dealer cart with combined shipping
+Quality Feedback: Rate products and dealer services
+Partners App (Input Dealers) Side:
+Order Management: Process farmer orders efficiently
+Inventory Updates: Real-time stock level management
+Customer Communication: Direct messaging with farmers
+Backend Integration:
+Inventory Sync: Real-time stock availability updates
+Order Workflow:
+Farmer places order → Dealer notification
+Dealer confirms → Farmer receives confirmation
+Shipping arranged → Tracking shared with farmer
+Delivery completed → Both parties rate transaction
+Soil Testing Services
+Farmers App Side:
+Lab Selection: Choose from verified soil testing laboratories
+Sample Booking: Schedule sample collection with GPS coordinates
+Results Access: Digital report delivery and interpretation
+Partners App (Soil Labs) Side:
+Booking Calendar: Manage sample collection schedules
+Sample Tracking: Barcode-based sample management system
+Report Delivery: Upload digital results with interpretation
+Backend Integration:
+Scheduling System: Synchronized calendar management
+Sample Chain of Custody: Complete tracking from collection to results
+AI Integration (Phase 2): Automated report interpretation and recommendations
+Veterinary Services
+Farmers App Side:
+Vet Discovery: Find veterinarians by specialization and location
+Appointment Booking: Schedule consultations with service type selection
+Animal Health Records: Maintain comprehensive livestock health data
+Partners App (Veterinarians) Side:
+Appointment Management: Digital calendar with farmer details
+Patient Records: Access animal health history and treatment plans
+Prescription Management: Digital prescription and medicine recommendations
+Backend Integration:
+Appointment Synchronization: Real-time calendar updates
+Health Record Sharing: Secure patient data access for treating vets
+Emergency Services: Priority booking for urgent cases
+Follow-up Management: Automated reminder system for check-ups
+Nursery Services
+Farmers App Side:
+Plant Discovery: Browse available plants by season and type
+Quality Verification: View nursery certifications and plant health
+Planting Guidance: Receive care instructions and best practices
+Partners App (Nurseries) Side:
+Inventory Management: Real-time plant availability updates
+Order Processing: Handle plant orders with specialized packaging
+Quality Assurance: Maintain plant health and certification standards
+Backend Integration:
+Seasonal Catalogs: Dynamic plant availability based on growing seasons
+Specialized Logistics: Integration with plant-safe transportation
+Care Instructions: Personalized growing guides based on farmer location
+3.3 Universal Features Across All Apps
+Authentication & Security
+Single Sign-On (SSO):
+Unified Login: One account across all CropFresh applications
+Role-based Access: Different permissions for farmers, businesses, partners
+Multi-factor Authentication: Enhanced security for sensitive operations
+Security Features:
+End-to-end Encryption: Secure communication across all apps
+Data Privacy Controls: User consent management and data portability
+Audit Trails: Complete transaction and interaction logging
+Real-time Communication
+Messaging System:
+Cross-app Messaging: Farmers can chat with businesses and partners
+Group Communications: FPO and community group messaging
+Multimedia Support: Photos, videos, documents, voice messages
+Notification Management:
+Smart Notifications: Context-aware alerts based on user activity
+Multi-channel Delivery: Push notifications, SMS, email
+Notification Preferences: Granular control over notification types
+Data Synchronization
+Offline-First Architecture:
+Local Data Storage: Critical data cached for offline access
+Smart Sync: Efficient synchronization when connectivity restored
+Conflict Resolution: Automated handling of data conflicts
+Real-time Updates:
+WebSocket Connections: Live data updates across all apps
+Event-driven Architecture: Instant updates on status changes
+Push Notifications: Immediate alerts for important events
+4. Backend Architecture & API Design
+4.1 Database Schema Design
+Core User Management
+sql
+-- Unified user table for all app types
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    phone_number VARCHAR(15) UNIQUE NOT NULL,
+    user_type VARCHAR(20) NOT NULL, -- 'farmer', 'business', 'partner'
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(100),
+    language VARCHAR(10) DEFAULT 'kannada',
+    is_verified BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Farmer-specific profile
+CREATE TABLE farmer_profiles (
+    user_id UUID PRIMARY KEY REFERENCES users(id),
+    farm_latitude DECIMAL(10, 8),
+    farm_longitude DECIMAL(11, 8),
+    farm_address TEXT,
+    farm_area_hectares DECIMAL(8, 2),
+    primary_crops TEXT[], -- Array of crop types
+    farming_experience_years INTEGER,
+    land_ownership_type VARCHAR(20) -- 'owner', 'tenant', 'sharecropper'
+);
+
+-- Business-specific profile
+CREATE TABLE business_profiles (
+    user_id UUID PRIMARY KEY REFERENCES users(id),
+    business_name VARCHAR(200) NOT NULL,
+    business_type VARCHAR(50) NOT NULL, -- 'mandi', 'retailer', 'wholesaler', etc.
+    registration_number VARCHAR(100),
+    gst_number VARCHAR(15),
+    business_latitude DECIMAL(10, 8),
+    business_longitude DECIMAL(11, 8),
+    business_address TEXT,
+    annual_turnover DECIMAL(12, 2)
+);
+
+-- Partner-specific profile
+CREATE TABLE partner_profiles (
+    user_id UUID PRIMARY KEY REFERENCES users(id),
+    partner_type VARCHAR(50) NOT NULL, -- 'logistics', 'input_dealer', 'vet', etc.
+    business_name VARCHAR(200),
+    license_number VARCHAR(100),
+    service_area_radius INTEGER DEFAULT 50, -- in kilometers
+    specialization TEXT[],
+    certification_details JSONB
+);
+Product & Marketplace Management
+sql
+-- Unified product catalog
+CREATE TABLE products (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    farmer_id UUID NOT NULL REFERENCES users(id),
+    crop_type VARCHAR(100) NOT NULL,
+    variety VARCHAR(100),
+    quantity DECIMAL(10, 2) NOT NULL,
+    unit VARCHAR(20) NOT NULL,
+    quality_grade VARCHAR(50),
+    base_price DECIMAL(10, 2) NOT NULL,
+    pricing_type VARCHAR(20) DEFAULT 'fixed', -- 'fixed', 'negotiable', 'auction'
+    description TEXT,
+    harvest_date DATE,
+    available_from DATE DEFAULT CURRENT_DATE,
+    available_until DATE,
+    farm_latitude DECIMAL(10, 8),
+    farm_longitude DECIMAL(11, 8),
+    status VARCHAR(20) DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Product images
+CREATE TABLE product_images (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    product_id UUID NOT NULL REFERENCES products(id),
+    image_url VARCHAR(500) NOT NULL,
+    image_order INTEGER NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Price negotiations
+CREATE TABLE negotiations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    product_id UUID NOT NULL REFERENCES products(id),
+    buyer_id UUID NOT NULL REFERENCES users(id),
+    farmer_id UUID NOT NULL REFERENCES users(id),
+    original_price DECIMAL(10, 2) NOT NULL,
+    proposed_price DECIMAL(10, 2) NOT NULL,
+    message TEXT,
+    status VARCHAR(20) DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+Logistics Management
+sql
+-- Logistics providers
+CREATE TABLE logistics_providers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id),
+    company_name VARCHAR(200),
+    provider_type VARCHAR(20) NOT NULL, -- 'company', 'individual'
+    base_latitude DECIMAL(10, 8),
+    base_longitude DECIMAL(11, 8),
+    service_radius INTEGER DEFAULT 50,
+    rating DECIMAL(3, 2) DEFAULT 0,
+    total_deliveries INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE
+);
+
+-- Vehicle fleet
+CREATE TABLE vehicles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    provider_id UUID NOT NULL REFERENCES logistics_providers(id),
+    vehicle_type VARCHAR(50) NOT NULL,
+    capacity_kg DECIMAL(8, 2) NOT NULL,
+    capacity_m3 DECIMAL(6, 2),
+    has_refrigeration BOOLEAN DEFAULT FALSE,
+    license_plate VARCHAR(20) NOT NULL,
+    price_per_km DECIMAL(6, 2) NOT NULL,
+    status VARCHAR(20) DEFAULT 'available'
+);
+
+-- Logistics bookings
+CREATE TABLE logistics_bookings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    farmer_id UUID NOT NULL REFERENCES users(id),
+    provider_id UUID NOT NULL REFERENCES logistics_providers(id),
+    vehicle_id UUID NOT NULL REFERENCES vehicles(id),
+    product_id UUID REFERENCES products(id),
+    pickup_latitude DECIMAL(10, 8) NOT NULL,
+    pickup_longitude DECIMAL(11, 8) NOT NULL,
+    pickup_address TEXT,
+    delivery_latitude DECIMAL(10, 8) NOT NULL,
+    delivery_longitude DECIMAL(11, 8) NOT NULL,
+    delivery_address TEXT,
+    scheduled_datetime TIMESTAMP NOT NULL,
+    estimated_weight DECIMAL(8, 2),
+    total_price DECIMAL(10, 2),
+    status VARCHAR(20) DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+4.2 API Architecture
+RESTful API Design
+Base URL Structure:
+Development: https://api-dev.cropfresh.com/v1
+Staging: https://api-staging.cropfresh.com/v1
+Production: https://api.cropfresh.com/v1
+Authentication Endpoints:
+POST /auth/send-otp          # Send OTP to phone number
+POST /auth/verify-otp        # Verify OTP and get tokens
+POST /auth/refresh-token     # Refresh access token
+POST /auth/logout            # Logout and invalidate tokens
+Farmer-specific Endpoints:
+GET    /farmer/profile              # Get farmer profile
+PUT    /farmer/profile              # Update farmer profile
+GET    /farmer/dashboard            # Dashboard data
+GET    /farmer/products             # Farmer's product listings
+POST   /farmer/products             # Create new product listing
+PUT    /farmer/products/{id}        # Update product listing
+DELETE /farmer/products/{id}        # Delete product listing
+GET    /farmer/orders               # Farmer's orders (as seller)
+GET    /farmer/livestock            # Livestock inventory
+POST   /farmer/livestock            # Add new animal
+Marketplace Endpoints:
+GET    /marketplace/products        # Browse products with filters
+GET    /marketplace/products/{id}   # Product details
+POST   /marketplace/inquiries       # Send inquiry to farmer
+GET    /marketplace/categories      # Product categories
+GET    /marketplace/search          # Search products
+Logistics Endpoints:
+GET    /logistics/providers         # Search logistics providers
+POST   /logistics/bookings          # Create booking
+GET    /logistics/bookings/{id}     # Booking details
+PUT    /logistics/bookings/{id}     # Update booking status
+GET    /logistics/tracking/{id}     # Live tracking data
+WebSocket Integration
+Real-time Features:
+ws://api.cropfresh.com/ws/farmer/{farmer_id}
+ws://api.cropfresh.com/ws/business/{business_id}
+ws://api.cropfresh.com/ws/partner/{partner_id}
+Event Types:
+negotiation_message - Price negotiation updates
+order_status_update - Order status changes
+booking_accepted - Logistics booking confirmation
+location_update - Real-time GPS tracking
+new_inquiry - Product inquiry notification
+4.3 MongoDB Document Structure
+Knowledge Base Content
+javascript
+// KrishiGyan Kendra articles
+{
+  "_id": ObjectId("..."),
+  "title": {
+    "kannada": "ಹೊಸ ಕೃಷಿ ತಂತ್ರಗಳು",
+    "telugu": "కొత్త వ్యవసాయ పద్ధతులు",
+    "hindi": "नई कृषि तकनीकें",
+    "english": "New Farming Techniques"
+  },
+  "content": {
+    "kannada": "...",
+    "telugu": "...",
+    "hindi": "...",
+    "english": "..."
+  },
+  "category": "crop_cultivation",
+  "subcategory": "organic_farming",
+  "tags": ["organic", "pesticide_free", "sustainable"],
+  "media": [
+    {
+      "type": "image",
+      "url": "https://cdn.cropfresh.com/images/...",
+      "caption": {
+        "kannada": "...",
+        "english": "..."
+      }
+    }
+  ],
+  "target_audience": ["small_farmers", "organic_farmers"],
+  "applicable_regions": ["karnataka", "andhra_pradesh"],
+  "seasonal_relevance": ["monsoon", "post_harvest"],
+  "difficulty_level": "beginner",
+  "estimated_read_time": 5,
+  "author": {
+    "name": "Dr. Agricultural Expert",
+    "credentials": "PhD in Agricultural Sciences",
+    "institution": "University of Agricultural Sciences"
+  },
+  "created_at": ISODate("2024-01-15T10:30:00Z"),
+  "updated_at": ISODate("2024-01-15T10:30:00Z"),
+  "view_count": 1250,
+  "rating": 4.7,
+  "downloads": 150
+}
+Crop Health Records
+javascript
+// Digital Crop Diary entries
+{
+  "_id": ObjectId("..."),
+  "farmer_id": "farmer_uuid_here",
+  "farm_location": {
+    "type": "Point",
+    "coordinates": [77.5946, 12.9716]
+  },
+  "field_name": "North Field",
+  "crop_cycle": {
+    "crop_type": "tomato",
+    "variety": "Bangalore hybrid",
+    "planting_date": ISODate("2024-01-15T00:00:00Z"),
+    "expected_harvest": ISODate("2024-04-15T00:00:00Z"),
+    "area_hectares": 0.5
+  },
+  "daily_entries": [
+    {
+      "date": ISODate("2024-01-15T00:00:00Z"),
+      "activity_type": "planting",
+      "details": {
+        "seeds_used": {
+          "quantity": 200,
+          "unit": "grams",
+          "cost": 150,
+          "supplier": "ABC Seeds"
+        },
+        "weather": {
+          "temperature": 28,
+          "humidity": 65,
+          "rainfall": 0
+        },
+        "soil_condition": "moist",
+        "photos": [
+          "https://cdn.cropfresh.com/crop-photos/..."
+        ]
+      }
+    }
+  ],
+  "inputs_used": [
+    {
+      "date": ISODate("2024-01-20T00:00:00Z"),
+      "input_type": "fertilizer",
+      "product_name": "NPK 19:19:19",
+      "quantity": 10,
+      "unit": "kg",
+      "cost": 250,
+      "application_method": "broadcasting"
+    }
+  ],
+  "pest_disease_records": [
+    {
+      "date": ISODate("2024-02-01T00:00:00Z"),
+      "issue_type": "pest",
+      "pest_name": "aphids",
+      "severity": "moderate",
+      "affected_area_percentage": 20,
+      "treatment": {
+        "product": "Neem oil",
+        "quantity": "2ml per liter",
+        "application_date": ISODate("2024-02-02T00:00:00Z"),
+        "effectiveness": "good"
+      },
+      "photos": [
+        "https://cdn.cropfresh.com/pest-photos/..."
+      ]
+    }
+  ],
+  "harvest_records": [
+    {
+      "harvest_date": ISODate("2024-04-10T00:00:00Z"),
+      "quantity_harvested": 500,
+      "unit": "kg",
+      "quality_grade": "A",
+      "market_price": 25,
+      "total_revenue": 12500,
+      "buyer_details": {
+        "buyer_type": "local_market",
+        "buyer_name": "City Vegetable Market"
+      }
+    }
+  ],
+  "total_investment": 2500,
+  "total_revenue": 12500,
+  "profit_loss": 10000,
+  "created_at": ISODate("2024-01-15T10:30:00Z"),
+  "updated_at": ISODate("2024-04-15T18:45:00Z")
+}
+5. Development Milestones & Timeline
+Phase 1: Foundation (Months 1-6)
+Month 1-2: Core Infrastructure
+Week 1-2: Project Setup & Backend Foundation
+Django project initialization with PostgreSQL and MongoDB
+API authentication system with JWT
+Basic user management and profile creation
+Flutter project setup with Material Design 3
+Week 3-4: Authentication Flow
+Phone number-based registration system
+OTP verification with SMS integration
+Biometric authentication setup
+Language selection and localization framework
+Week 5-8: Basic User Interface
+Splash screen and onboarding flow
+Dashboard with weather and market price widgets
+Profile setup and management screens
+Offline data sync foundation
+Month 3-4: Marketplace & Basic Features
+Week 9-12: Direct Marketplace
+Product listing creation with photo upload
+Product catalog browsing and search
+Basic negotiation interface
+Order management system
+Week 13-16: Logistics Integration
+Logistics provider discovery
+Booking interface with location selection
+Basic tracking functionality
+Integration with Partners App logistics module
+Month 5-6: Service Integrations
+Week 17-20: Input Procurement & Soil Testing
+Input dealer integration
+Product catalog and ordering system
+Soil testing lab discovery and booking
+Sample collection scheduling
+Week 21-24: Veterinary & Nursery Services
+Veterinarian discovery and booking
+Animal health record management
+Nursery plant catalog integration
+Basic livestock management features
+Phase 2: AI Integration (Months 7-12)
+Month 7-8: AI Infrastructure
+Week 25-28: AI Model Development
+Computer vision model for crop disease detection
+Market price prediction algorithm development
+Weather integration with AI-powered alerts
+Chatbot development with NLP capabilities
+Week 29-32: AI Feature Integration
+AI Crop Scanner implementation
+Price prediction integration in marketplace
+Intelligent weather alerts system
+AI-powered chatbot deployment
+Month 9-10: Smart Features
+Week 33-36: Yield Forecasting & Crop Planning
+AI yield prediction based on historical data
+Intelligent crop selection recommendations
+Soil report interpretation automation
+Route optimization for logistics
+Week 37-40: Advanced Analytics
+Farm productivity analytics
+Market demand forecasting
+Personalized recommendations engine
+Predictive maintenance for equipment
+Month 11-12: AI Enhancement & Optimization
+Week 41-44: Model Refinement
+Continuous learning system implementation
+Model accuracy improvements
+User feedback integration
+Performance optimization
+Week 45-48: AI Feature Completion
+Advanced pest and disease prediction
+Intelligent input recommendations
+Market timing optimization
+Comprehensive AI dashboard
+Phase 3: Financial Services (Months 13-18)
+Month 13-14: Financial Infrastructure
+Week 49-52: Payment Systems
+Digital payment gateway integration
+Secure transaction processing
+Escrow service implementation
+Multi-currency support
+Week 53-56: Credit Assessment
+Alternative credit scoring development
+Integration with traditional lenders
+Digital loan application system
+Risk assessment algorithms
+Month 15-16: Insurance & Government Schemes
+Week 57-60: Insurance Integration
+Crop insurance policy management
+Claims processing automation
+Weather-based insurance products
+Livestock insurance options
+Week 61-64: Government Scheme Integration
+Scheme eligibility checker
+Application assistance system
+Status tracking and updates
+Document management system
+Month 17-18: Financial Services Completion
+Week 65-68: Advanced Financial Tools
+Financial planning and budgeting tools
+Investment tracking and analysis
+Micro-lending platform integration
+Financial literacy content
+Week 69-72: Platform Launch Preparation
+Comprehensive testing and quality assurance
+Performance optimization and scalability testing
+User training and documentation
+Marketing and launch strategy implementation
+6. Quality Assurance & Testing Strategy
+6.1 Testing Framework
+Unit Testing: 80%+ code coverage for all modules
+Integration Testing: API and database interaction testing
+Widget Testing: Flutter UI component testing
+End-to-End Testing: Complete user journey validation
+Performance Testing: Load testing and optimization
+Security Testing: Vulnerability assessment and penetration testing
+Usability Testing: Farmer feedback and iterative improvements
+6.2 Device Compatibility
+Android: Versions 7.0+ (API level 24+)
+iOS: Versions 12.0+
+Screen Sizes: 4.5" to 7" screen support
+Performance: Smooth operation on budget smartphones
+Network: 2G/3G/4G/5G and WiFi connectivity
+Storage: Minimum 2GB free space requirement
+
+

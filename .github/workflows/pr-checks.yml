@@ -1,0 +1,411 @@
+name: Pull Request Checks
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+env:
+  FLUTTER_VERSION: '3.16.0'
+  JAVA_VERSION: '17'
+
+jobs:
+  # Skip if PR is draft
+  check_pr_status:
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.check.outputs.should_skip }}
+    steps:
+    - name: Check if PR is draft
+      id: check
+      run: |
+        if [ "${{ github.event.pull_request.draft }}" == "true" ]; then
+          echo "should_skip=true" >> $GITHUB_OUTPUT
+        else
+          echo "should_skip=false" >> $GITHUB_OUTPUT
+        fi
+
+  # PR Information & Validation
+  pr_validation:
+    name: PR Validation
+    runs-on: ubuntu-latest
+    needs: check_pr_status
+    if: needs.check_pr_status.outputs.should_skip != 'true'
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Validate PR Title
+      uses: amannn/action-semantic-pull-request@v5
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        types: |
+          feat
+          fix
+          docs
+          style
+          refactor
+          perf
+          test
+          build
+          ci
+          chore
+        requireScope: false
+        ignoreLabels: |
+          ignore-semantic-pull-request
+    
+    - name: Check PR Size
+      run: |
+        FILES_CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | wc -l)
+        LINES_CHANGED=$(git diff --shortstat origin/${{ github.base_ref }}...HEAD | awk '{print $4+$6}')
+        
+        echo "Files changed: $FILES_CHANGED"
+        echo "Lines changed: $LINES_CHANGED"
+        
+        if [ $FILES_CHANGED -gt 50 ]; then
+          echo "⚠️ Large PR: $FILES_CHANGED files changed. Consider breaking this into smaller PRs."
+        fi
+        
+        if [ $LINES_CHANGED -gt 1000 ]; then
+          echo "⚠️ Large PR: $LINES_CHANGED lines changed. Consider breaking this into smaller PRs."
+        fi
+    
+    - name: Check for Breaking Changes
+      run: |
+        # Check if any breaking changes are introduced
+        BREAKING_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E "(pubspec.yaml|android/app/build.gradle|ios/Runner/Info.plist)" || true)
+        
+        if [ -n "$BREAKING_FILES" ]; then
+          echo "⚠️ Potential breaking changes detected in: $BREAKING_FILES"
+          echo "Please ensure version bump and changelog update are included."
+        fi
+
+  # Quick Code Quality Check
+  quick_check:
+    name: Quick Quality Check
+    runs-on: ubuntu-latest
+    needs: check_pr_status
+    if: needs.check_pr_status.outputs.should_skip != 'true'
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: ${{ env.FLUTTER_VERSION }}
+        channel: 'stable'
+        cache: true
+    
+    - name: Get Dependencies
+      run: flutter pub get
+    
+    - name: Check Formatting
+      run: |
+        dart format --output=none --set-exit-if-changed .
+        if [ $? -ne 0 ]; then
+          echo "❌ Code formatting issues found. Please run 'dart format .' to fix."
+          exit 1
+        fi
+    
+    - name: Analyze Code
+      run: |
+        flutter analyze --fatal-infos
+        if [ $? -ne 0 ]; then
+          echo "❌ Static analysis issues found. Please fix the issues above."
+          exit 1
+        fi
+
+  # Test Coverage Check
+  test_coverage:
+    name: Test Coverage
+    runs-on: ubuntu-latest
+    needs: check_pr_status
+    if: needs.check_pr_status.outputs.should_skip != 'true'
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: ${{ env.FLUTTER_VERSION }}
+        channel: 'stable'
+        cache: true
+    
+    - name: Get Dependencies
+      run: flutter pub get
+    
+    - name: Generate Code
+      run: |
+        flutter packages pub run build_runner build --delete-conflicting-outputs
+    
+    - name: Run Tests with Coverage
+      run: |
+        flutter test --coverage
+    
+    - name: Check Coverage Threshold
+      run: |
+        # Install lcov tools
+        sudo apt-get update
+        sudo apt-get install -y lcov
+        
+        # Generate coverage report
+        genhtml coverage/lcov.info -o coverage/html
+        
+        # Calculate coverage percentage
+        COVERAGE=$(lcov --summary coverage/lcov.info | grep "lines......" | awk '{print $2}' | sed 's/%//')
+        echo "Coverage: $COVERAGE%"
+        
+        # Set minimum coverage threshold
+        THRESHOLD=70
+        
+        if (( $(echo "$COVERAGE < $THRESHOLD" | bc -l) )); then
+          echo "❌ Test coverage ($COVERAGE%) is below threshold ($THRESHOLD%)"
+          exit 1
+        else
+          echo "✅ Test coverage ($COVERAGE%) meets threshold ($THRESHOLD%)"
+        fi
+    
+    - name: Comment Coverage on PR
+      uses: marocchino/sticky-pull-request-comment@v2
+      with:
+        recreate: true
+        message: |
+          ## 📊 Test Coverage Report
+          
+          | Metric | Value |
+          |--------|--------|
+          | Lines | ![Coverage](https://img.shields.io/badge/Lines-${{ env.COVERAGE }}%25-green) |
+          | Functions | ![Coverage](https://img.shields.io/badge/Functions-${{ env.COVERAGE }}%25-green) |
+          | Branches | ![Coverage](https://img.shields.io/badge/Branches-${{ env.COVERAGE }}%25-green) |
+          
+          Coverage report generated for commit ${{ github.sha }}
+
+  # Build Check (Quick)
+  build_check:
+    name: Build Check
+    runs-on: ubuntu-latest
+    needs: [quick_check, test_coverage]
+    if: needs.check_pr_status.outputs.should_skip != 'true'
+    strategy:
+      matrix:
+        platform: [android, web]
+        
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+    
+    - name: Setup Java (Android only)
+      if: matrix.platform == 'android'
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'zulu'
+        java-version: ${{ env.JAVA_VERSION }}
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: ${{ env.FLUTTER_VERSION }}
+        channel: 'stable'
+        cache: true
+    
+    - name: Enable Web (Web only)
+      if: matrix.platform == 'web'
+      run: flutter config --enable-web
+    
+    - name: Get Dependencies
+      run: flutter pub get
+    
+    - name: Generate Code
+      run: |
+        flutter packages pub run build_runner build --delete-conflicting-outputs
+    
+    - name: Build Android APK
+      if: matrix.platform == 'android'
+      run: |
+        flutter build apk --debug --target-platform android-arm64
+    
+    - name: Build Web
+      if: matrix.platform == 'web'
+      run: |
+        flutter build web --web-renderer html
+
+  # Security Check
+  security_check:
+    name: Security Check
+    runs-on: ubuntu-latest
+    needs: check_pr_status
+    if: needs.check_pr_status.outputs.should_skip != 'true'
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: ${{ env.FLUTTER_VERSION }}
+        channel: 'stable'
+        cache: true
+    
+    - name: Get Dependencies
+      run: flutter pub get
+    
+    - name: Check for Secrets
+      uses: trufflesecurity/trufflehog@main
+      with:
+        path: ./
+        base: ${{ github.event.repository.default_branch }}
+        head: HEAD
+        extra_args: --debug --only-verified
+    
+    - name: Vulnerability Scan
+      run: |
+        flutter pub audit
+    
+    - name: License Check
+      run: |
+        # Check for incompatible licenses
+        flutter pub deps --json | jq -r '.packages[] | select(.kind != "dev") | "\(.name): \(.version)"' > dependencies.txt
+        echo "📄 Dependencies in this PR:"
+        cat dependencies.txt
+
+  # Performance Impact Check
+  performance_check:
+    name: Performance Impact
+    runs-on: ubuntu-latest
+    needs: build_check
+    if: needs.check_pr_status.outputs.should_skip != 'true'
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: ${{ env.FLUTTER_VERSION }}
+        channel: 'stable'
+        cache: true
+    
+    - name: Get Dependencies
+      run: flutter pub get
+    
+    - name: Build APK for Size Check
+      run: |
+        flutter build apk --debug --target-platform android-arm64
+    
+    - name: Check APK Size
+      run: |
+        APK_SIZE=$(stat -c%s "build/app/outputs/flutter-apk/app-debug.apk")
+        APK_SIZE_MB=$((APK_SIZE / 1024 / 1024))
+        
+        echo "APK Size: ${APK_SIZE_MB}MB"
+        
+        # Set size threshold (50MB for debug build)
+        if [ $APK_SIZE_MB -gt 50 ]; then
+          echo "⚠️ APK size (${APK_SIZE_MB}MB) is large. Consider optimizing assets and dependencies."
+        fi
+    
+    - name: Analyze Dependencies
+      run: |
+        echo "📦 Dependency Analysis:"
+        flutter pub deps --style=tree
+        
+        echo "📊 Dependency Summary:"
+        flutter pub deps --json | jq -r '.packages[] | select(.kind != "dev") | .name' | sort | uniq -c | sort -nr
+
+  # Comment PR Summary
+  pr_summary:
+    name: PR Summary
+    runs-on: ubuntu-latest
+    needs: [pr_validation, quick_check, test_coverage, build_check, security_check, performance_check]
+    if: always() && needs.check_pr_status.outputs.should_skip != 'true'
+    
+    steps:
+    - name: Generate PR Summary
+      id: summary
+      run: |
+        # Determine overall status
+        if [ "${{ needs.pr_validation.result }}" = "success" ] && \
+           [ "${{ needs.quick_check.result }}" = "success" ] && \
+           [ "${{ needs.test_coverage.result }}" = "success" ] && \
+           [ "${{ needs.build_check.result }}" = "success" ] && \
+           [ "${{ needs.security_check.result }}" = "success" ] && \
+           [ "${{ needs.performance_check.result }}" = "success" ]; then
+          echo "status=✅ All checks passed!" >> $GITHUB_OUTPUT
+          echo "emoji=🎉" >> $GITHUB_OUTPUT
+        else
+          echo "status=❌ Some checks failed" >> $GITHUB_OUTPUT
+          echo "emoji=🔧" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Comment PR Summary
+      uses: marocchino/sticky-pull-request-comment@v2
+      with:
+        header: pr-summary
+        message: |
+          ## ${{ steps.summary.outputs.emoji }} PR Summary
+          
+          **Status:** ${{ steps.summary.outputs.status }}
+          
+          | Check | Status |
+          |-------|--------|
+          | PR Validation | ${{ needs.pr_validation.result == 'success' && '✅' || '❌' }} |
+          | Code Quality | ${{ needs.quick_check.result == 'success' && '✅' || '❌' }} |
+          | Test Coverage | ${{ needs.test_coverage.result == 'success' && '✅' || '❌' }} |
+          | Build Check | ${{ needs.build_check.result == 'success' && '✅' || '❌' }} |
+          | Security Check | ${{ needs.security_check.result == 'success' && '✅' || '❌' }} |
+          | Performance Check | ${{ needs.performance_check.result == 'success' && '✅' || '❌' }} |
+          
+          <details>
+          <summary>📋 Checklist for Reviewers</summary>
+          
+          - [ ] Code follows project conventions and style guidelines
+          - [ ] Tests are comprehensive and pass
+          - [ ] Documentation is updated if needed
+          - [ ] No sensitive information is exposed
+          - [ ] Performance impact is acceptable
+          - [ ] UI/UX changes are consistent with design system
+          - [ ] Accessibility considerations are addressed
+          - [ ] Error handling is robust
+          - [ ] Breaking changes are documented
+          </details>
+          
+          ---
+          
+          🤖 This summary was generated automatically for commit ${{ github.sha }}
+
+  # Auto-merge for trusted contributors
+  auto_merge:
+    name: Auto Merge
+    runs-on: ubuntu-latest
+    needs: [pr_validation, quick_check, test_coverage, build_check, security_check, performance_check]
+    if: |
+      always() &&
+      needs.pr_validation.result == 'success' &&
+      needs.quick_check.result == 'success' &&
+      needs.test_coverage.result == 'success' &&
+      needs.build_check.result == 'success' &&
+      needs.security_check.result == 'success' &&
+      needs.performance_check.result == 'success' &&
+      contains(github.event.pull_request.labels.*.name, 'auto-merge') &&
+      (github.event.pull_request.user.login == 'dependabot[bot]' || 
+       contains(github.event.pull_request.labels.*.name, 'trusted-contributor'))
+    
+    steps:
+    - name: Enable auto-merge
+      uses: peter-evans/enable-pull-request-automerge@v3
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        pull-request-number: ${{ github.event.pull_request.number }}
+        merge-method: squash
